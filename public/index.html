@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css"
+    />
+    <title>Shopify Importer</title>
+  </head>
+  <body class="container" style="padding-top: 50px">
+    <article>
+      <header><strong>Order CSV Importer (2026 API)</strong></header>
+      <input type="file" id="csvFile" />
+      <button onclick="upload()">Start Import</button>
+      <div id="status"></div>
+    </article>
+
+    <table role="grid">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="log"></tbody>
+    </table>
+
+    <script>
+      async function upload() {
+        const status = document.getElementById("status");
+        const log = document.getElementById("log");
+        const file = document.getElementById("csvFile").files[0];
+
+        status.innerText = "Processing...";
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/import", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+
+        status.innerText = "Done!";
+        data.results.forEach((r) => {
+          log.innerHTML += `<tr><td>${r.sku}</td><td>${r.status}</td></tr>`;
+        });
+      }
+    </script>
+  </body>
+</html>
+
+<article>
+  <header><strong>System Diagnostic</strong></header>
+  <div style="display: flex; gap: 10px; align-items: center">
+    <button onclick="checkConnection()" class="secondary">Run API Test</button>
+    <span id="connectionStatus">Status: Unknown</span>
+  </div>
+</article>
+
+<script>
+  async function checkConnection() {
+    const statusEl = document.getElementById("connectionStatus");
+    statusEl.innerText = "Status: Testing...";
+
+    try {
+      const res = await fetch("/api/testconnection", { method: "POST" });
+      const data = await res.json();
+
+      if (data.success) {
+        statusEl.innerHTML = `✅ <span style="color:green">Connected: ${data.order.name} created.</span>`;
+      } else {
+        statusEl.innerHTML = `❌ <span style="color:red">Failed: Check API Scopes.</span>`;
+      }
+    } catch (e) {
+      statusEl.innerText = "Status: Error (Server Offline)";
+    }
+  }
+</script>
