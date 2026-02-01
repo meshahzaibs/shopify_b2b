@@ -1,17 +1,17 @@
 import { shopifyQuery } from "./shopify.js";
 
 export const TestConnection = {
-  /**
-   * Creates a simple test draft order to verify API connectivity and Scopes.
-   * Can be triggered via a simple browser refresh on a GET route.
-   */
   async createSampleOrder() {
+    // 1. Correct Mutation for Real Orders
     const mutation = `
-      mutation draftOrderCreate($input: DraftOrderInput!) {
-        draftOrderCreate(input: $input) {
-          draftOrder {
+      mutation orderCreate($order: OrderCreateOrderInput!) {
+        orderCreate(order: $order) {
+          order {
             id
             name
+            totalPriceSet {
+              shopMoney { amount currencyCode }
+            }
           }
           userErrors {
             field
@@ -21,85 +21,101 @@ export const TestConnection = {
       }
     `;
 
-    // Hardcoded test data - no CSV needed for this connection test
+    // 2. Variables correctly formatted with Strings for prices
     const variables = {
-      input: {
-        note: "API Connection Test - Jan 2026",
+      // order: {
+      //   // 1. Set top-level order currency to USD
+      //   currency: "USD",
+      //   financialStatus: "PENDING",
+      //   metafields: [
+      //     {
+      //       namespace: "custom",
+      //       key: "ponumber",
+      //       type: "single_line_text_field",
+      //       value: "PO-10556901",
+      //     },
+      //   ],
+      //   lineItems: [
+      //     {
+      //       // Real Product
+      //       variantId: "gid://shopify/ProductVariant/44803689971862",
+      //       quantity: 1,
+      //       requiresShipping: true,
+      //       // priceSet: {
+      //       //   shopMoney: {
+      //       //     amount: "70",
+      //       //     currencyCode: "USD", // 2. Match line item currency
+      //       //   },
+      //       // },
+      //     },
+      //     // {
+      //     //   // Custom Line Item
+      //     //   title: "Custom Test Item",
+      //     //   quantity: 1,
+      //     //   requiresShipping: true,
+      //     //   priceSet: {
+      //     //     shopMoney: {
+      //     //       amount: "10.00",
+      //     //       currencyCode: "USD", // 3. Match custom item currency
+      //     //     },
+      //     //   },
+      //     // },
+      //   ],
+      //   // transactions: [
+      //   //   {
+      //   //     kind: "SALE",
+      //   //     status: "SUCCESS",
+      //   //     amountSet: {
+      //   //       shopMoney: {
+      //   //         amount: "70", // Total (74.99 + 10.00)
+      //   //         currencyCode: "USD", // 4. Match transaction currency
+      //   //       },
+      //   //     },
+      //   //   },
+      //   // ],
+      // },
+
+      order: {
+        currency: "USD",
+        financialStatus: "PENDING",
+
         lineItems: [
           {
-            title: "Test Connection Product",
-            originalUnitPrice: "1.00", // Required as String
+            variantId: "gid://shopify/ProductVariant/44803689971862",
             quantity: 1,
+            requiresShipping: true,
+            fulfillmentService: "manual",
           },
         ],
-        tags: ["api-test", "node-js-app"],
       },
     };
 
     try {
-      console.log("📡 Sending test mutation to Shopify...");
+      console.log("📡 Attempting to create a REAL order via orderCreate...");
+
       const response = await shopifyQuery(mutation, variables);
 
-      console.log("📨 Response received from Shopify:", response);
-
-      // --- CRITICAL ERROR HANDLING ---
-
-      // 1. Check if the shopifyQuery itself failed/timed out
-      if (!response) {
-        throw new Error(
-          "No response from shopifyQuery. Check shopify.js configuration.",
-        );
-      }
-
-      // 2. Check for Top-Level GraphQL Errors (Auth, Throttling, Syntax)
-      if (response.errors) {
-        const authError = response.errors.find((e) =>
-          e.message.includes("Access denied"),
-        );
-        const errorMessage = authError
-          ? "❌ ACCESS DENIED: Check if your token has 'write_draft_orders' scope."
-          : `❌ GraphQL Error: ${response.errors[0].message}`;
-
-        console.error(errorMessage);
-        return {
-          success: false,
-          message: errorMessage,
-          details: response.errors,
-        };
-      }
-
-      // 3. Extract the Mutation Result
-      const result = response.data?.draftOrderCreate;
+      // Extract result safely based on your helper returning response.data.data
+      const result = response.orderCreate || response.data?.orderCreate;
 
       if (!result) {
-        throw new Error(
-          "Malformed response: draftOrderCreate missing from data.",
-        );
+        console.error("❌ No data returned. Check shopifyQuery helper.");
+        return { success: false };
       }
 
-      // 4. Check for User/Validation Errors (Bad data types)
       if (result.userErrors && result.userErrors.length > 0) {
-        console.error("❌ Shopify Validation Errors:", result.userErrors);
-        return {
-          success: false,
-          message: "Validation Failed",
-          errors: result.userErrors,
-        };
+        console.error(
+          "❌ Shopify User Errors:",
+          JSON.stringify(result.userErrors, null, 2),
+        );
+        return { success: false, errors: result.userErrors };
       }
 
-      // 5. Success
-      const orderName = result.draftOrder.name;
-      console.log(`✅ Success! Created Test Order: ${orderName}`);
-
-      return {
-        success: true,
-        message: `Order ${orderName} created successfully!`,
-        orderId: result.draftOrder.id,
-      };
+      console.log(`✅ Success! Real Order Created: ${result.order.name}`);
+      return { success: true, order: result.order };
     } catch (error) {
-      const crashMsg = `❌ Connection Crash: ${error.message}`;
-      console.error(crashMsg);
-      return { success: false, message: crashMsg };
+      console.error("❌ API Execution Error:", error.message);
+      return { success: false, message: error.message };
     }
   },
 };

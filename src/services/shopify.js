@@ -39,21 +39,72 @@ export async function getAccessToken() {
 }
 
 // 2. Generic GraphQL Requester
+// export async function shopifyQuery(query, variables = {}) {
+//   const token = await getAccessToken();
+//   const url = `https://${SHOPIFY_SHOP}/admin/api/2026-01/graphql.json`;
+
+//   const response = await axios({
+//     url,
+//     method: "POST",
+//     headers: {
+//       "X-Shopify-Access-Token": token,
+//       "Content-Type": "application/json",
+//     },
+//     // Axios handles object-to-JSON conversion automatically
+//     data: { query, variables },
+//   });
+
+//   // Return the full body so the service can check for BOTH .data and .errors
+//   return response.data;
+// }
+
 export async function shopifyQuery(query, variables = {}) {
   const token = await getAccessToken();
   const url = `https://${SHOPIFY_SHOP}/admin/api/2026-01/graphql.json`;
 
-  const response = await axios({
-    url,
-    method: "POST",
-    headers: {
-      "X-Shopify-Access-Token": token,
-      "Content-Type": "application/json",
-    },
-    // Axios handles object-to-JSON conversion automatically
-    data: { query, variables },
-  });
+  try {
+    const response = await axios.post(
+      url,
+      { query, variables },
+      {
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-  // Return the full body so the service can check for BOTH .data and .errors
-  return response.data;
+    // return response.data;
+
+    const res = await axios.get(
+      `https://${SHOPIFY_SHOP}/admin/oauth/access_scopes.json`,
+      {
+        headers: {
+          "X-Shopify-Access-Token": token,
+        },
+      },
+    );
+
+    console.log("🔐 Granted scopes:", res.data.access_scopes);
+
+    // 🔴 GraphQL-level errors (syntax, permission, invalid fields, etc)
+    if (response.data.errors?.length) {
+      console.error("🚨 Shopify GraphQL Errors:", response.data.errors);
+      throw new Error(response.data.errors[0].message);
+    }
+
+    return response.data.data; // clean success payload
+  } catch (error) {
+    // 🟠 Network / API / permission errors
+    if (error.response?.data) {
+      console.error(
+        "❌ Shopify API Error:",
+        JSON.stringify(error.response.data, null, 2),
+      );
+    } else {
+      console.error("❌ Request Failed:", error.message);
+    }
+
+    throw error;
+  }
 }
