@@ -1,16 +1,169 @@
 import { shopifyQuery } from "./shopify.js";
 
 export const TestConnection = {
-  async createSampleOrder() {
-    // 1. Correct Mutation for Real Orders
-    const mutation = `
-      mutation orderCreate($order: OrderCreateOrderInput!) {
-        orderCreate(order: $order) {
-          order {
+  // async createSampleOrder() {
+  //   // 1. Correct Mutation for Real Orders
+  //   const mutation = `
+  //     mutation orderCreate($order: OrderCreateOrderInput!) {
+  //       orderCreate(order: $order) {
+  //         order {
+  //           id
+  //           name
+  //           totalPriceSet {
+  //             shopMoney { amount currencyCode }
+  //           }
+  //         }
+  //         userErrors {
+  //           field
+  //           message
+  //         }
+  //       }
+  //     }
+  //   `;
+
+  //   // 2. Variables correctly formatted with Strings for prices
+  //   const variables = {
+  //     order: {
+  //       currency: "USD",
+  //       financialStatus: "PENDING",
+
+  //       lineItems: [
+  //         {
+  //           variantId: matchedVariants[0].id,
+  //           quantity: 1,
+  //           requiresShipping: true,
+  //           fulfillmentService: "manual",
+  //         },
+  //       ],
+  //     },
+  //   };
+
+  //   try {
+  //     console.log("📡 Attempting to create a REAL order via orderCreate...");
+
+  //     const response = await shopifyQuery(mutation, variables);
+
+  //     // Extract result safely based on your helper returning response.data.data
+  //     const result = response.orderCreate || response.data?.orderCreate;
+
+  //     if (!result) {
+  //       console.error("❌ No data returned. Check shopifyQuery helper.");
+  //       return { success: false };
+  //     }
+
+  //     if (result.userErrors && result.userErrors.length > 0) {
+  //       console.error(
+  //         "❌ Shopify User Errors:",
+  //         JSON.stringify(result.userErrors, null, 2),
+  //       );
+  //       return { success: false, errors: result.userErrors };
+  //     }
+
+  //     console.log(`✅ Success! Real Order Created: ${result.order.name}`);
+  //     return { success: true, order: result.order };
+  //   } catch (error) {
+  //     console.error("❌ API Execution Error:", error.message);
+  //     return { success: false, message: error.message };
+  //   }
+  // },
+
+  async testDraftToOrder() {
+    // GraphQL query to get all variants
+    const GET_ALL_VARIANTS = `#graphql
+      query GetAllVariants($first: Int = 250, $after: String) {
+        productVariants(first: $first, after: $after) {
+          edges {
+            cursor
+            node {
+              id
+              sku
+              title
+              product {
+                id
+                title
+              }
+              lbhsku: metafield(namespace: "custom", key: "lbhsku") {
+                value
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+    `;
+
+    // Function to fetch all variants using pagination
+    async function getAllVariants(shopifyQuery) {
+      const first = 250; // max per request
+      let after = null;
+      let allVariants = [];
+
+      do {
+        const variables = { first, after };
+        const response = await shopifyQuery(GET_ALL_VARIANTS, variables);
+
+        const edges = response.data.productVariants.edges ?? [];
+        allVariants = allVariants.concat(edges.map((e) => e.node));
+
+        const lastEdge = edges[edges.length - 1];
+        after =
+          response.data.productVariants.pageInfo.hasNextPage && lastEdge
+            ? lastEdge.cursor
+            : null;
+      } while (after);
+
+      return allVariants;
+    }
+
+    // Usage example:
+    const variants = await getAllVariants(shopifyQuery);
+    console.log("Total variants fetched:", variants.length);
+
+    const targetSku = "sku06";
+    // Filter variants where lbhsku contains the target SKU
+    const matchedVariants = variants.filter((variant) => {
+      if (!variant.lbhsku || !variant.lbhsku.value) return false;
+      const skuArray = JSON.parse(variant.lbhsku.value); // convert JSON string to array
+      return skuArray.includes(targetSku);
+    });
+
+    console.log(`variantIds`, matchedVariants[0].id);
+
+    console.log("matchedVariants ->", matchedVariants);
+
+    // return ("test", matchedVariants[0].id);
+
+    // 1️ CREATE DRAFT ORDER
+    const createDraftMutation = `mutation draftOrderCreate($input: DraftOrderInput!) {
+          draftOrderCreate(input: $input) {
+          draftOrder {
             id
             name
-            totalPriceSet {
-              shopMoney { amount currencyCode }
+            metafields(first: 10) {
+              edges {
+                node {
+                  id
+                  namespace
+                  key
+                  value
+                  type
+                }
+              }
+            }
+            lineItems(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  quantity
+                  priceOverride {
+                    amount
+                    currencyCode
+                  }
+                }
+              }
             }
           }
           userErrors {
@@ -21,101 +174,150 @@ export const TestConnection = {
       }
     `;
 
-    // 2. Variables correctly formatted with Strings for prices
-    const variables = {
-      // order: {
-      //   // 1. Set top-level order currency to USD
-      //   currency: "USD",
-      //   financialStatus: "PENDING",
-      //   metafields: [
-      //     {
-      //       namespace: "custom",
-      //       key: "ponumber",
-      //       type: "single_line_text_field",
-      //       value: "PO-10556901",
-      //     },
-      //   ],
-      //   lineItems: [
-      //     {
-      //       // Real Product
-      //       variantId: "gid://shopify/ProductVariant/44803689971862",
-      //       quantity: 1,
-      //       requiresShipping: true,
-      //       // priceSet: {
-      //       //   shopMoney: {
-      //       //     amount: "70",
-      //       //     currencyCode: "USD", // 2. Match line item currency
-      //       //   },
-      //       // },
-      //     },
-      //     // {
-      //     //   // Custom Line Item
-      //     //   title: "Custom Test Item",
-      //     //   quantity: 1,
-      //     //   requiresShipping: true,
-      //     //   priceSet: {
-      //     //     shopMoney: {
-      //     //       amount: "10.00",
-      //     //       currencyCode: "USD", // 3. Match custom item currency
-      //     //     },
-      //     //   },
-      //     // },
-      //   ],
-      //   // transactions: [
-      //   //   {
-      //   //     kind: "SALE",
-      //   //     status: "SUCCESS",
-      //   //     amountSet: {
-      //   //       shopMoney: {
-      //   //         amount: "70", // Total (74.99 + 10.00)
-      //   //         currencyCode: "USD", // 4. Match transaction currency
-      //   //       },
-      //   //     },
-      //   //   },
-      //   // ],
-      // },
-
-      order: {
-        currency: "USD",
-        financialStatus: "PENDING",
-
-        lineItems: [
+    const draftVariables = {
+      input: {
+        metafields: [
           {
-            variantId: "gid://shopify/ProductVariant/44803689971862",
-            quantity: 1,
-            requiresShipping: true,
-            fulfillmentService: "manual",
+            namespace: "custom",
+            key: "ponumber",
+            type: "single_line_text_field",
+            value: "PO-10556901",
+          },
+          {
+            namespace: "custom",
+            key: "orderno",
+            type: "single_line_text_field",
+            value: "PO-dfwddd",
+          },
+          {
+            namespace: "custom",
+            key: "lbhsku",
+            type: "single_line_text_field",
+            value: "PO-dddwddd",
+          },
+          {
+            namespace: "custom",
+            key: "Kitco_rate",
+            type: "single_line_text_field",
+            value: "PO-ddd342d",
+          },
+          {
+            namespace: "custom",
+            key: "kitco_gold",
+            type: "single_line_text_field",
+            value: "PO-ddedd",
+          },
+          {
+            namespace: "custom",
+            key: "ordercomments",
+            type: "multi_line_text_field",
+            value: "PO-ddsssdd",
+          },
+          {
+            namespace: "custom",
+            key: "customization",
+            type: "multi_line_text_field",
+            value: "dwdw wdwd",
           },
         ],
+        lineItems: [
+          {
+            variantId: matchedVariants[0].id,
+            quantity: 1,
+            // requiresShipping: true,
+            priceOverride: {
+              amount: "50.00",
+              currencyCode: "USD",
+            },
+          },
+        ],
+        note: "API test draft order",
       },
     };
 
-    try {
-      console.log("📡 Attempting to create a REAL order via orderCreate...");
+    const draftRes = await shopifyQuery(createDraftMutation, draftVariables);
+    const draftData = draftRes?.data?.draftOrderCreate;
 
-      const response = await shopifyQuery(mutation, variables);
+    if (!draftData || draftData.userErrors.length > 0) {
+      console.error("❌ Draft error:", draftData?.userErrors);
+      return;
+    }
 
-      // Extract result safely based on your helper returning response.data.data
-      const result = response.orderCreate || response.data?.orderCreate;
+    const draftId = draftData.draftOrder.id;
+    console.log("📝 Draft created:", draftData.draftOrder.name, draftId);
 
-      if (!result) {
-        console.error("❌ No data returned. Check shopifyQuery helper.");
-        return { success: false };
+    // 2️⃣ COMPLETE DRAFT ORDER
+    const completeMutation = `
+      mutation draftOrderComplete($id: ID!) {
+        draftOrderComplete(id: $id) {
+          draftOrder { id }
+          userErrors { field message }
+        }
       }
+    `;
+    const completeRes = await shopifyQuery(completeMutation, { id: draftId });
+    const completeData = completeRes?.data?.draftOrderComplete;
 
-      if (result.userErrors && result.userErrors.length > 0) {
+    if (!completeData || completeData.userErrors.length > 0) {
+      console.error("❌ Complete error:", completeData?.userErrors);
+      return;
+    }
+    console.log("✅ Draft completed! Draft ID:", completeData.draftOrder.id);
+
+    // 3️⃣ FETCH REAL ORDER ID
+    const orderQuery = `
+      query draftOrderQuery($id: ID!) {
+        draftOrder(id: $id) {
+          order { id name }
+          metafields(first: 10) {
+            edges { node { namespace key value type } }
+          }
+        }
+      }
+    `;
+    const orderRes = await shopifyQuery(orderQuery, { id: draftId });
+    const draftOrder = orderRes?.data?.draftOrder;
+    const realOrder = draftOrder?.order;
+
+    if (!realOrder) {
+      console.error("❌ Real order not found after draft completion.");
+      return;
+    }
+
+    console.log("🎉 Real Order created:", realOrder.name, realOrder.id);
+
+    // 4️⃣ COPY DRAFT METAFIELDS TO REAL ORDER
+    if (draftOrder.metafields?.edges?.length > 0) {
+      const metafieldNodes = draftOrder.metafields.edges.map((e) => e.node);
+      const metafieldsInput = metafieldNodes.map((mf) => ({
+        ownerId: realOrder.id,
+        namespace: mf.namespace,
+        key: mf.key,
+        type: mf.type,
+        value: mf.value,
+      }));
+
+      const setMetafieldsMutation = `
+        mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+          metafieldsSet(metafields: $metafields) {
+            metafields { id namespace key value }
+            userErrors { field message }
+          }
+        }
+      `;
+
+      const metafieldRes = await shopifyQuery(setMetafieldsMutation, {
+        metafields: metafieldsInput,
+      });
+
+      if (metafieldRes.data.metafieldsSet.userErrors.length > 0) {
         console.error(
-          "❌ Shopify User Errors:",
-          JSON.stringify(result.userErrors, null, 2),
+          "❌ Error setting metafields on real order:",
+          metafieldRes.data.metafieldsSet.userErrors,
         );
-        return { success: false, errors: result.userErrors };
+      } else {
+        console.log("✅ Metafields copied to real order!");
       }
-
-      console.log(`✅ Success! Real Order Created: ${result.order.name}`);
-      return { success: true, order: result.order };
-    } catch (error) {
-      console.error("❌ API Execution Error:", error.message);
-      return { success: false, message: error.message };
     }
   },
 };

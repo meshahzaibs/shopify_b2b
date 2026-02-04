@@ -105,7 +105,7 @@ app.listen(process.env.PORT, () =>
 );
 
 app.get("/api/testconnection", async (req, res) => {
-  const result = await TestConnection.createSampleOrder();
+  const result = await TestConnection.testDraftToOrder();
 
-  res.json("result");
+  res.json(result);
 });

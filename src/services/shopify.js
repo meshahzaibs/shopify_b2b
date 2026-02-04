@@ -74,18 +74,18 @@ export async function shopifyQuery(query, variables = {}) {
       },
     );
 
-    // return response.data;
+    return response.data;
 
-    const res = await axios.get(
-      `https://${SHOPIFY_SHOP}/admin/oauth/access_scopes.json`,
-      {
-        headers: {
-          "X-Shopify-Access-Token": token,
-        },
-      },
-    );
+    // const res = await axios.get(
+    //   `https://${SHOPIFY_SHOP}/admin/oauth/access_scopes.json`,
+    //   {
+    //     headers: {
+    //       "X-Shopify-Access-Token": token,
+    //     },
+    //   },
+    // );
 
-    console.log("🔐 Granted scopes:", res.data.access_scopes);
+    // console.log("🔐 Granted scopes:", res.data.access_scopes);
 
     // 🔴 GraphQL-level errors (syntax, permission, invalid fields, etc)
     if (response.data.errors?.length) {
