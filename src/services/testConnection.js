@@ -1,72 +1,6 @@
 import { shopifyQuery } from "./shopify.js";
 
 export const TestConnection = {
-  // async createSampleOrder() {
-  //   // 1. Correct Mutation for Real Orders
-  //   const mutation = `
-  //     mutation orderCreate($order: OrderCreateOrderInput!) {
-  //       orderCreate(order: $order) {
-  //         order {
-  //           id
-  //           name
-  //           totalPriceSet {
-  //             shopMoney { amount currencyCode }
-  //           }
-  //         }
-  //         userErrors {
-  //           field
-  //           message
-  //         }
-  //       }
-  //     }
-  //   `;
-
-  //   // 2. Variables correctly formatted with Strings for prices
-  //   const variables = {
-  //     order: {
-  //       currency: "USD",
-  //       financialStatus: "PENDING",
-
-  //       lineItems: [
-  //         {
-  //           variantId: matchedVariants[0].id,
-  //           quantity: 1,
-  //           requiresShipping: true,
-  //           fulfillmentService: "manual",
-  //         },
-  //       ],
-  //     },
-  //   };
-
-  //   try {
-  //     console.log("📡 Attempting to create a REAL order via orderCreate...");
-
-  //     const response = await shopifyQuery(mutation, variables);
-
-  //     // Extract result safely based on your helper returning response.data.data
-  //     const result = response.orderCreate || response.data?.orderCreate;
-
-  //     if (!result) {
-  //       console.error("❌ No data returned. Check shopifyQuery helper.");
-  //       return { success: false };
-  //     }
-
-  //     if (result.userErrors && result.userErrors.length > 0) {
-  //       console.error(
-  //         "❌ Shopify User Errors:",
-  //         JSON.stringify(result.userErrors, null, 2),
-  //       );
-  //       return { success: false, errors: result.userErrors };
-  //     }
-
-  //     console.log(`✅ Success! Real Order Created: ${result.order.name}`);
-  //     return { success: true, order: result.order };
-  //   } catch (error) {
-  //     console.error("❌ API Execution Error:", error.message);
-  //     return { success: false, message: error.message };
-  //   }
-  // },
-
   async testDraftToOrder() {
     // GraphQL query to get all variants
     const GET_ALL_VARIANTS = `#graphql
@@ -121,7 +55,7 @@ export const TestConnection = {
     const variants = await getAllVariants(shopifyQuery);
     console.log("Total variants fetched:", variants.length);
 
-    const targetSku = "sku06";
+    const targetSku = "sku01";
     // Filter variants where lbhsku contains the target SKU
     const matchedVariants = variants.filter((variant) => {
       if (!variant.lbhsku || !variant.lbhsku.value) return false;
@@ -129,11 +63,93 @@ export const TestConnection = {
       return skuArray.includes(targetSku);
     });
 
-    console.log(`variantIds`, matchedVariants[0].id);
-
     console.log("matchedVariants ->", matchedVariants);
 
+    // Ensure at least one matched variant
+    if (!matchedVariants.length) {
+      console.error("❌ No variant found matching the target SKU:", targetSku);
+      return;
+    }
+
+    console.log(`variantIds`, matchedVariants[0].id);
+
     // return ("test", matchedVariants[0].id);
+
+    // create a customer
+
+    const customerInput = {
+      email: "testcustomer3@mshahzaib.com",
+      firstName: "John3",
+      lastName: "Doe",
+      phone: "+923000000008",
+    };
+
+    const FIND_CUSTOMER = `
+      query getCustomerByEmail($query: String!) {
+        customers(first: 1, query: $query) {
+          edges {
+            node {
+              id
+              email
+            }
+          }
+        }
+      }
+    `;
+
+    const findRes = await shopifyQuery(FIND_CUSTOMER, {
+      query: `email:${customerInput.email}`,
+    });
+
+    let customerId = null;
+
+    if (findRes.data.customers.edges.length > 0) {
+      customerId = findRes.data.customers.edges[0].node.id;
+      console.log("Existing customer found:", customerId);
+    } else {
+      const CREATE_CUSTOMER = `
+        mutation customerCreate($input: CustomerInput!) {
+          customerCreate(input: $input) {
+            customer {
+              id
+              email
+              firstName
+              lastName
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const customerVariables = {
+        input: {
+          email: customerInput.email,
+          firstName: customerInput.firstName,
+          lastName: customerInput.lastName,
+          phone: customerInput.phone,
+          emailMarketingConsent: {
+            marketingState: "NOT_SUBSCRIBED",
+            marketingOptInLevel: "SINGLE_OPT_IN",
+          },
+        },
+      };
+      const customerRes = await shopifyQuery(
+        CREATE_CUSTOMER,
+        customerVariables,
+      );
+      const customerData = customerRes?.data?.customerCreate;
+
+      if (customerData.userErrors.length) {
+        console.error("❌ Customer create error:", customerData.userErrors);
+        return;
+      }
+
+      customerId = customerData.customer.id;
+      console.log("👤 Customer created:", customerId);
+    }
 
     // 1️ CREATE DRAFT ORDER
     const createDraftMutation = `mutation draftOrderCreate($input: DraftOrderInput!) {
@@ -176,6 +192,7 @@ export const TestConnection = {
 
     const draftVariables = {
       input: {
+        customerId: customerId,
         metafields: [
           {
             namespace: "custom",
@@ -246,7 +263,7 @@ export const TestConnection = {
     const draftId = draftData.draftOrder.id;
     console.log("📝 Draft created:", draftData.draftOrder.name, draftId);
 
-    // 2️⃣ COMPLETE DRAFT ORDER
+    // 2 COMPLETE DRAFT ORDER
     const completeMutation = `
       mutation draftOrderComplete($id: ID!) {
         draftOrderComplete(id: $id) {
@@ -264,7 +281,7 @@ export const TestConnection = {
     }
     console.log("✅ Draft completed! Draft ID:", completeData.draftOrder.id);
 
-    // 3️⃣ FETCH REAL ORDER ID
+    // 3 FETCH REAL ORDER ID
     const orderQuery = `
       query draftOrderQuery($id: ID!) {
         draftOrder(id: $id) {
@@ -286,7 +303,7 @@ export const TestConnection = {
 
     console.log("🎉 Real Order created:", realOrder.name, realOrder.id);
 
-    // 4️⃣ COPY DRAFT METAFIELDS TO REAL ORDER
+    // 4️ COPY DRAFT METAFIELDS TO REAL ORDER
     if (draftOrder.metafields?.edges?.length > 0) {
       const metafieldNodes = draftOrder.metafields.edges.map((e) => e.node);
       const metafieldsInput = metafieldNodes.map((mf) => ({
