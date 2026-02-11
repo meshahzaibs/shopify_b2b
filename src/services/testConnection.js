@@ -1,4 +1,5 @@
 import { shopifyQuery } from "./shopify.js";
+import { buildAddress } from "../helpers/addressHelper.js";
 
 export const TestConnection = {
   async testDraftToOrder() {
@@ -55,15 +56,13 @@ export const TestConnection = {
     const variants = await getAllVariants(shopifyQuery);
     console.log("Total variants fetched:", variants.length);
 
-    const targetSku = "sku01";
+    const targetSku = "TJR-1355-E-DS";
     // Filter variants where lbhsku contains the target SKU
     const matchedVariants = variants.filter((variant) => {
       if (!variant.lbhsku || !variant.lbhsku.value) return false;
       const skuArray = JSON.parse(variant.lbhsku.value); // convert JSON string to array
       return skuArray.includes(targetSku);
     });
-
-    console.log("matchedVariants ->", matchedVariants);
 
     // Ensure at least one matched variant
     if (!matchedVariants.length) {
@@ -77,12 +76,34 @@ export const TestConnection = {
 
     // create a customer
 
-    const customerInput = {
-      email: "testcustomer3@mshahzaib.com",
-      firstName: "John3",
-      lastName: "Doe",
-      phone: "+923000000008",
+    const customerEmail = "testcustomer5@example.com";
+
+    const customerBt = {
+      fname: "Johnbilling",
+      lname: "Smith",
+      company: "Acme Corp",
+      street: "123 Main St",
+      addr2: "Suite 500",
+      addr3: "",
+      city: "New York",
+      state: "NY",
+      zip: "10001",
     };
+
+    const customerSt = {
+      fname: "John5",
+      lname: "Smith",
+      company: "Acme Corp",
+      street: "123 Main St",
+      addr2: "Suite 500",
+      addr3: "",
+      city: "New York",
+      state: "NY",
+      zip: "10001",
+    };
+
+    const billingAddress = buildAddress(customerBt);
+    const shippingAddress = buildAddress(customerSt);
 
     const FIND_CUSTOMER = `
       query getCustomerByEmail($query: String!) {
@@ -98,7 +119,7 @@ export const TestConnection = {
     `;
 
     const findRes = await shopifyQuery(FIND_CUSTOMER, {
-      query: `email:${customerInput.email}`,
+      query: `email:${customerEmail}`,
     });
 
     let customerId = null;
@@ -126,10 +147,10 @@ export const TestConnection = {
 
       const customerVariables = {
         input: {
-          email: customerInput.email,
-          firstName: customerInput.firstName,
-          lastName: customerInput.lastName,
-          phone: customerInput.phone,
+          email: customerEmail,
+          firstName: customerSt.fname,
+          lastName: customerSt.lname,
+          addresses: [shippingAddress, billingAddress],
           emailMarketingConsent: {
             marketingState: "NOT_SUBSCRIBED",
             marketingOptInLevel: "SINGLE_OPT_IN",
@@ -193,6 +214,8 @@ export const TestConnection = {
     const draftVariables = {
       input: {
         customerId: customerId,
+        shippingAddress,
+        billingAddress,
         metafields: [
           {
             namespace: "custom",
