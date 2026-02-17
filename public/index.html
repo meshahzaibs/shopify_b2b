@@ -18,7 +18,7 @@
     <table role="grid">
       <thead>
         <tr>
-          <th>SKU</th>
+          <th>Order No</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -43,7 +43,7 @@
 
         status.innerText = "Done!";
         data.results.forEach((r) => {
-          log.innerHTML += `<tr><td>${r.sku}</td><td>${r.status}</td></tr>`;
+          log.innerHTML += `<tr><td>${r.orderno}</td><td>${r.status}</td></tr>`;
         });
       }
     </script>

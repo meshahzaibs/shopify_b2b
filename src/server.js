@@ -52,7 +52,17 @@ app.post("/api/import", upload.single("file"), async (req, res) => {
     const rows = [];
 
     fs.createReadStream(req.file.path)
-      .pipe(csv())
+      .pipe(
+        csv({
+          mapHeaders: ({ header }) =>
+            header
+              .normalize("NFKC") // fix Excel unicode junk
+              .replace(/[\u200B-\u200D\uFEFF]/g, "")
+              .trim()
+              .toLowerCase()
+              .replace(/\s+/g, "_"), // spaces → _
+        }),
+      )
       .on("data", (row) => {
         rows.push(row); // collect all rows
       })
