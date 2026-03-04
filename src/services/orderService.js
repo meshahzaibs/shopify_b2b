@@ -133,21 +133,49 @@ export async function importOrders(rows) {
       // return;
 
       // -------- CREATE DRAFT ORDER --------
+      // Define which metafields you want to include
+      const metafieldKeys = [
+        { key: "ponumber", type: "single_line_text_field" },
+        { key: "orderno", type: "single_line_text_field" },
+        { key: "vendorsku", type: "single_line_text_field" },
+        { key: "lbhsku", type: "single_line_text_field" },
+        { key: "kitco_rate", type: "single_line_text_field" },
+        { key: "kitco_gold", type: "single_line_text_field" },
+        { key: "ordercomments", type: "multi_line_text_field" },
+        { key: "customization", type: "multi_line_text_field" },
+      ];
+
+      // Build metafields array, skipping empty or undefined values
+      const metafields = metafieldKeys
+        .map(({ key, type }) => {
+          const value = row[key];
+          if (value !== undefined && value !== null && value !== "") {
+            return {
+              namespace: "custom",
+              key,
+              type,
+              value,
+            };
+          }
+          return null; // skip empty
+        })
+        .filter(Boolean); // remove nulls
+
+      // Create draft order with filtered metafields
       const draftRes = await shopifyQuery(
         `#graphql
-        mutation ($input: DraftOrderInput!) {
-          draftOrderCreate(input: $input) {
-            draftOrder { id }
-            userErrors { message }
+          mutation ($input: DraftOrderInput!) {
+            draftOrderCreate(input: $input) {
+              draftOrder { id }
+              userErrors { message }
+            }
           }
-        }
         `,
         {
           input: {
             customerId,
             shippingAddress,
             billingAddress,
-            // note: row.ordercomments || "",
             lineItems: [
               {
                 variantId: matchedVariant.id,
@@ -155,56 +183,7 @@ export async function importOrders(rows) {
                 priceOverride: { amount: row.price, currencyCode: "USD" },
               },
             ],
-            metafields: [
-              {
-                namespace: "custom",
-                key: "ponumber",
-                type: "single_line_text_field",
-                value: row.ponumber,
-              },
-              {
-                namespace: "custom",
-                key: "orderno",
-                type: "single_line_text_field",
-                value: row.orderno,
-              },
-              {
-                namespace: "custom",
-                key: "vendorsku",
-                type: "single_line_text_field",
-                value: row.vendorsku,
-              },
-              {
-                namespace: "custom",
-                key: "lbhsku",
-                type: "single_line_text_field",
-                value: row.lbhsku,
-              },
-              {
-                namespace: "custom",
-                key: "kitco_rate",
-                type: "single_line_text_field",
-                value: row.kitco_rate,
-              },
-              {
-                namespace: "custom",
-                key: "kitco_gold",
-                type: "single_line_text_field",
-                value: row.kitco_gold,
-              },
-              {
-                namespace: "custom",
-                key: "ordercomments",
-                type: "multi_line_text_field",
-                value: row.ordercomments || "",
-              },
-              {
-                namespace: "custom",
-                key: "customization",
-                type: "multi_line_text_field",
-                value: row.customization || "",
-              },
-            ],
+            metafields, // only non-empty metafields
           },
         },
       );
@@ -270,6 +249,36 @@ export async function importOrders(rows) {
 
       // -------- COPY METAFIELDS --------
       if (draftOrder.metafields?.edges?.length > 0) {
+        // Define the metafields you want to set
+        const metafieldsTemplate = [
+          { key: "ponumber", type: "single_line_text_field" },
+          { key: "orderno", type: "single_line_text_field" },
+          { key: "vendorsku", type: "single_line_text_field" },
+          { key: "lbhsku", type: "single_line_text_field" },
+          { key: "kitco_rate", type: "single_line_text_field" },
+          { key: "kitco_gold", type: "single_line_text_field" },
+          { key: "ordercomments", type: "multi_line_text_field" },
+          { key: "customization", type: "multi_line_text_field" },
+        ];
+
+        // Build the actual metafields array, skipping empty/undefined values
+        const metafields = metafieldsTemplate
+          .map(({ key, type }) => {
+            const value = row[key];
+            if (value !== undefined && value !== null && value !== "") {
+              return {
+                ownerId: realOrder.id,
+                namespace: "custom",
+                key,
+                type,
+                value,
+              };
+            }
+            return null; // skip if empty
+          })
+          .filter(Boolean); // remove nulls
+
+        // Call Shopify mutation only with the filtered metafields
         const metafieldRes = await shopifyQuery(
           `#graphql
             mutation ($metafields: [MetafieldsSetInput!]!) {
@@ -279,66 +288,7 @@ export async function importOrders(rows) {
               }
             }
           `,
-          {
-            metafields: [
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "ponumber",
-                type: "single_line_text_field",
-                value: row.ponumber || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "orderno",
-                type: "single_line_text_field",
-                value: row.orderno || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "vendorsku",
-                type: "single_line_text_field",
-                value: row.vendorsku || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "lbhsku",
-                type: "single_line_text_field",
-                value: row.lbhsku || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "kitco_rate",
-                type: "single_line_text_field",
-                value: row.kitco_rate || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "kitco_gold",
-                type: "single_line_text_field",
-                value: row.kitco_gold || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "ordercomments",
-                type: "multi_line_text_field",
-                value: row.ordercomments || "",
-              },
-              {
-                ownerId: realOrder.id,
-                namespace: "custom",
-                key: "customization",
-                type: "multi_line_text_field",
-                value: row.customization || "",
-              },
-            ],
-          },
+          { metafields },
         );
 
         if (metafieldRes.data.metafieldsSet.userErrors.length > 0) {
