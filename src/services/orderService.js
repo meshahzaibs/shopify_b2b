@@ -270,44 +270,15 @@ export async function importOrders(rows) {
 
       // -------- COPY METAFIELDS --------
       if (draftOrder.metafields?.edges?.length > 0) {
-        // const metafieldsInput = draftOrder.metafields.edges.map((e) => ({
-        //   ownerId: realOrder.id,
-        //   namespace: e.node.namespace,
-        //   key: e.node.key,
-        //   type: e.node.type,
-        //   value: e.node.value,
-        // }));
-
-        // const metafieldRes = await shopifyQuery(
-        //   `#graphql
-        //   mutation ($metafields: [MetafieldsSetInput!]!) {
-        //     metafieldsSet(metafields: $metafields) {
-        //       metafields { id namespace key value }
-        //       userErrors { field message }
-        //     }
-        //   }
-        //   `,
-        //   { metafields: metafieldsInput },
-        // );
-
-        // if (metafieldRes.data.metafieldsSet.userErrors.length > 0) {
-        //   console.error(
-        //     "❌ Error copying metafields:",
-        //     metafieldRes.data.metafieldsSet.userErrors,
-        //   );
-        // } else {
-        //   console.log("✅ Metafields copied to real order!");
-        // }
-
         const metafieldRes = await shopifyQuery(
           `#graphql
-  mutation ($metafields: [MetafieldsSetInput!]!) {
-    metafieldsSet(metafields: $metafields) {
-      metafields { id key }
-      userErrors { field message }
-    }
-  }
-  `,
+            mutation ($metafields: [MetafieldsSetInput!]!) {
+              metafieldsSet(metafields: $metafields) {
+                metafields { id key }
+                userErrors { field message }
+              }
+            }
+          `,
           {
             metafields: [
               {
