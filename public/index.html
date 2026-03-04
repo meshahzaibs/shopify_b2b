@@ -25,6 +25,12 @@
       <tbody id="log"></tbody>
     </table>
 
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <h2>Upload Shopify Order CSV</h2>
+      <input type="file" name="csvfile" accept=".csv" required /><br />
+      <button type="submit">Process & Download</button>
+    </form>
+
     <script>
       async function upload() {
         const status = document.getElementById("status");
@@ -49,14 +55,6 @@
     </script>
   </body>
 </html>
-
-<article>
-  <header><strong>System Diagnostic</strong></header>
-  <div style="display: flex; gap: 10px; align-items: center">
-    <button onclick="checkConnection()" class="secondary">Run API Test</button>
-    <span id="connectionStatus">Status: Unknown</span>
-  </div>
-</article>
 
 <script>
   async function checkConnection() {

@@ -11,6 +11,8 @@ import { TestConnection } from "./services/testConnection.js";
 
 import { importOrders } from "./services/orderService.js";
 
+import { processShopifyExport } from "./services/mergeOrders.js";
+
 dotenv.config();
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -87,6 +89,41 @@ app.post("/api/import", upload.single("file"), async (req, res) => {
       });
   } catch (err) {
     res.status(500).json({ message: "Unexpected error", error: err.message });
+  }
+});
+
+app.post("/upload", upload.single("csvfile"), async (req, res) => {
+  if (!req.file) return res.status(400).send("No file uploaded");
+
+  const inputPath = req.file.path;
+  const outputPath = path.join("uploads", `merged-${Date.now()}.csv`);
+
+  try {
+    await processShopifyExport(inputPath, outputPath);
+
+    const now = new Date();
+
+    const formattedDate =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0") +
+      "_" +
+      String(now.getHours()).padStart(2, "0") +
+      "-" +
+      String(now.getMinutes()).padStart(2, "0") +
+      "-" +
+      String(now.getSeconds()).padStart(2, "0");
+
+    const fileName = `shopify-orders-merged-${formattedDate}.csv`;
+
+    res.download(outputPath, fileName, (err) => {
+      if (err) console.error(err);
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error processing CSV");
   }
 });
 
