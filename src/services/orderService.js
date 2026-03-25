@@ -65,7 +65,7 @@ export async function importOrders(rows) {
 
       // -------- BUILD ADDRESSES --------
       const customerEmail =
-        `${row.st_fname}.${row.st_lname}.${row.st_custno}@import.com`.toLowerCase();
+        `${row.st_fname}.${row.st_lname}.${row.st_custno}@meshahzaibs.com`.toLowerCase();
 
       const billingAddress = buildAddress({
         fname: row.bt_fname,
@@ -161,32 +161,41 @@ export async function importOrders(rows) {
         })
         .filter(Boolean); // remove nulls
 
-      // Create draft order with filtered metafields
-      const draftRes = await shopifyQuery(
-        `#graphql
+      const parsedTags = row.tags
+        ? row.tags
+            .split(",") // split by comma
+            .map((tag) => tag.trim()) // remove spaces
+            .filter((tag) => tag) // remove empty values
+        : [];
+
+      const draftOrderMutation = `#graphql
           mutation ($input: DraftOrderInput!) {
             draftOrderCreate(input: $input) {
               draftOrder { id }
               userErrors { message }
             }
           }
-        `,
-        {
-          input: {
-            customerId,
-            shippingAddress,
-            billingAddress,
-            lineItems: [
-              {
-                variantId: matchedVariant.id,
-                quantity: Number(row.qty),
-                priceOverride: { amount: row.price, currencyCode: "USD" },
-              },
-            ],
-            metafields, // only non-empty metafields
-          },
+        `;
+
+      const draftInput = {
+        input: {
+          customerId,
+          shippingAddress,
+          billingAddress,
+          lineItems: [
+            {
+              variantId: matchedVariant.id,
+              quantity: Number(row.qty),
+              priceOverride: { amount: row.price, currencyCode: "USD" },
+            },
+          ],
+          metafields,
+          tags: [...parsedTags, "imported"],
         },
-      );
+      };
+
+      // Create draft order with filtered metafields
+      const draftRes = await shopifyQuery(draftOrderMutation, draftInput);
 
       const draftId = draftRes.data.draftOrderCreate.draftOrder.id;
 
