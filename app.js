@@ -7,11 +7,11 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { TestConnection } from "./services/testConnection.js";
+import { TestConnection } from "./src/services/testConnection.js";
 
-import { importOrders } from "./services/orderService.js";
+import { importOrders } from "./src/services/orderService.js";
 
-import { processShopifyExport } from "./services/mergeOrders.js";
+import { processShopifyExport } from "./src/services/mergeOrders.js";
 
 dotenv.config();
 const app = express();
