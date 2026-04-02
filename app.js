@@ -33,7 +33,8 @@ async function getAccessToken() {
 }
 
 async function shopifyQuery(query, variables = {}) {
-  const token = await getAccessToken();
+  // const token = await getAccessToken();
+  const token = process.env.SHPAT; // Use the long-lived access token from .env
   const res = await axios({
     url: `https://${process.env.SHOPIFY_SHOP}/admin/api/2026-01/graphql.json`,
     method: "POST",

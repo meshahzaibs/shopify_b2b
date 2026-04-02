@@ -59,7 +59,9 @@ export async function getAccessToken() {
 // }
 
 export async function shopifyQuery(query, variables = {}) {
-  const token = await getAccessToken();
+  // const token = await getAccessToken();
+  const token = process.env.SHPAT; // Use the long-lived access token from .env
+
   const url = `https://${SHOPIFY_SHOP}/admin/api/2026-01/graphql.json`;
 
   try {
