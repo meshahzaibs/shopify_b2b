@@ -1,5 +1,5 @@
-SHOPIFY_SHOP=testdevms.myshopify.com
-SHOPIFY_CLIENT_ID=dd404a70bf74a2a9d1ad340d20b97e4c
-SHOPIFY_CLIENT_SECRET=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
+SHOPIFY_SHOP=
+SHOPIFY_CLIENT_ID=
+SHOPIFY_CLIENT_SECRET=
 PORT=3000
 SHOPIFY_SCOPES=read_products,write_products,write_draft_orders,write_customers,write_fulfillments

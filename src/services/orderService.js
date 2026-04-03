@@ -64,8 +64,7 @@ export async function importOrders(rows) {
       }
 
       // -------- BUILD ADDRESSES --------
-      const customerEmail =
-        `${row.st_fname}.${row.st_lname}.${row.st_custno}@meshahzaibs.com`.toLowerCase();
+      const customerEmail = row.email;
 
       const billingAddress = buildAddress({
         fname: row.bt_fname,
