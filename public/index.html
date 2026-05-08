@@ -20,6 +20,7 @@
         <tr>
           <th>Order No</th>
           <th>Status</th>
+          <th>Reason</th>
         </tr>
       </thead>
       <tbody id="log"></tbody>
@@ -47,9 +48,11 @@
         });
         const data = await res.json();
 
-        status.innerText = "Done!";
+        console.log("Import Results:", data);
+
+        status.innerText = data.error ? data.error : "Done!";
         data.results.forEach((r) => {
-          log.innerHTML += `<tr><td>${r.orderno}</td><td>${r.status}</td></tr>`;
+          log.innerHTML += `<tr><td>${r.orderno}</td><td>${r.status}</td><td>${r.reason}</td></tr>`;
         });
       }
     </script>

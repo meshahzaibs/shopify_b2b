@@ -30,6 +30,12 @@ export async function getAccessToken() {
     if (error.response) {
       // This will tell you EXACTLY why Shopify said no (e.g., "invalid_client" or "shop_not_permitted")
       console.error("Shopify OAuth Error Details:", error.response.data);
+
+      const results = [];
+      results.push({
+        status: "FAILED",
+      });
+
       throw new Error(
         `Shopify Auth Failed: ${error.response.data.error_description || error.response.data.error}`,
       );
@@ -59,8 +65,8 @@ export async function getAccessToken() {
 // }
 
 export async function shopifyQuery(query, variables = {}) {
-  // const token = await getAccessToken();
-  const token = process.env.SHPAT; // Use the long-lived access token from .env
+  const token = await getAccessToken();
+  // const token = process.env.SHPAT; // Use the long-lived access token from .env
 
   const url = `https://${SHOPIFY_SHOP}/admin/api/2026-01/graphql.json`;
 
