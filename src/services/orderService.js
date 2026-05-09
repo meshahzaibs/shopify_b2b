@@ -138,8 +138,8 @@ export async function importOrders(rows) {
         { key: "orderno", type: "single_line_text_field" },
         { key: "vendorsku", type: "single_line_text_field" },
         { key: "lbhsku", type: "single_line_text_field" },
-        { key: "kitco_rate", type: "single_line_text_field" },
-        { key: "kitco_gold", type: "single_line_text_field" },
+        { key: "billingsilverbase", type: "single_line_text_field" },
+        { key: "billinggoldbase", type: "single_line_text_field" },
         { key: "ordercomments", type: "multi_line_text_field" },
         { key: "customization", type: "multi_line_text_field" },
       ];
@@ -185,7 +185,7 @@ export async function importOrders(rows) {
             {
               variantId: matchedVariant.id,
               quantity: Number(row.qty),
-              priceOverride: { amount: row.price, currencyCode: "USD" },
+              priceOverride: { amount: row.invoicecost, currencyCode: "USD" },
             },
           ],
           metafields,
@@ -263,8 +263,8 @@ export async function importOrders(rows) {
           { key: "orderno", type: "single_line_text_field" },
           { key: "vendorsku", type: "single_line_text_field" },
           { key: "lbhsku", type: "single_line_text_field" },
-          { key: "kitco_rate", type: "single_line_text_field" },
-          { key: "kitco_gold", type: "single_line_text_field" },
+          { key: "billingsilverbase", type: "single_line_text_field" },
+          { key: "billinggoldbase", type: "single_line_text_field" },
           { key: "ordercomments", type: "multi_line_text_field" },
           { key: "customization", type: "multi_line_text_field" },
         ];

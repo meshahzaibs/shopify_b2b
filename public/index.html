@@ -52,7 +52,7 @@
 
         status.innerText = data.error ? data.error : "Done!";
         data.results.forEach((r) => {
-          log.innerHTML += `<tr><td>${r.orderno}</td><td>${r.status}</td><td>${r.reason}</td></tr>`;
+          log.innerHTML += `<tr><td>${r.orderno}</td><td>${r.status}</td><td>${r.reason ? r.reason : " "}</td></tr>`;
         });
       }
     </script>
