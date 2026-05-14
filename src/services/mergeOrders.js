@@ -7,18 +7,39 @@ import { shopifyQuery } from "./shopify.js";
    STEP 1: Get Shopify Order ID from Name
 -------------------------------------------*/
 async function fetchOrderIdByName(orderName) {
+  // const query = `
+  //   query ($query: String!) {
+  //     orders(first: 1, query: $query) {
+  //       edges {
+  //         node {
+  //           id
+  //           name
+  //         }
+  //       }
+  //     }
+  //   }
+  // `;
+
   const query = `
-    query ($query: String!) {
-      orders(first: 1, query: $query) {
-        edges {
-          node {
-            id
-            name
+      query ($query: String!) {
+        orders(first: 1, query: $query) {
+          edges {
+            node {
+              id
+              name
+
+              lineItems(first: 1) {
+                edges {
+                  node {
+                    quantity
+                  }
+                }
+              }
+            }
           }
         }
       }
-    }
-  `;
+    `;
 
   const res = await shopifyQuery(query, {
     query: `name:${orderName.replace("#", "")}`,
@@ -32,23 +53,23 @@ async function fetchOrderIdByName(orderName) {
 -------------------------------------------*/
 async function fetchOrderMetafields(orderId) {
   const query = `
-   query GetOrderMetafieldsById($orderId: ID!) {
-      order(id: $orderId) {
-         id
-         name
+      query GetOrderMetafieldsById($orderId: ID!) {
+          order(id: $orderId) {
+            id
+            name
 
-         ponumber: metafield(namespace: "custom", key: "ponumber") { jsonValue }
-         orderno: metafield(namespace: "custom", key: "orderno") { jsonValue }
-         vendorsku: metafield(namespace: "custom", key: "vendorsku") { jsonValue }
-         lbhsku: metafield(namespace: "custom", key: "lbhsku") { jsonValue }
-         kitco_rate: metafield(namespace: "custom", key: "kitco_rate") { jsonValue }
-         kitco_gold: metafield(namespace: "custom", key: "kitco_gold") { jsonValue }
-         ordercomments: metafield(namespace: "custom", key: "ordercomments") { jsonValue }
-         customization: metafield(namespace: "custom", key: "customization") { jsonValue }
+            ponumber: metafield(namespace: "custom", key: "ponumber") { jsonValue }
+            orderno: metafield(namespace: "custom", key: "orderno") { jsonValue }
+            vendorsku: metafield(namespace: "custom", key: "vendorsku") { jsonValue }
+            lbhsku: metafield(namespace: "custom", key: "lbhsku") { jsonValue }
+            billingsilverbase: metafield(namespace: "custom", key: "billingsilverbase") { jsonValue }
+            billinggoldbase: metafield(namespace: "custom", key: "billinggoldbase") { jsonValue }
+            ordercomments: metafield(namespace: "custom", key: "ordercomments") { jsonValue }
+            customization: metafield(namespace: "custom", key: "customization") { jsonValue }
 
+          }
       }
-   }
-`;
+    `;
 
   const res = await shopifyQuery(query, { orderId });
   const order = res.data.order;
@@ -60,8 +81,8 @@ async function fetchOrderMetafields(orderId) {
     "orderno",
     "vendorsku",
     "lbhsku",
-    "kitco_rate",
-    "kitco_gold",
+    "billingsilverbase",
+    "billinggoldbase",
     "ordercomments",
     "customization",
   ];
@@ -108,7 +129,21 @@ export async function processShopifyExport(inputPath, outputPath) {
       }
 
       // 2️⃣ Get metafields
-      const metafields = await fetchOrderMetafields(orderId);
+      let metafields = await fetchOrderMetafields(orderId);
+
+      metafields.invoiceno = row.Name;
+      // Constant vendor no
+      metafields.vendorno = "10556901";
+
+      const qty = parseFloat(row["Lineitem quantity"] || 0);
+      const unitPrice = parseFloat(row["Lineitem price"] || 0);
+
+      const perItemCost = qty * unitPrice;
+
+      // Qty
+      metafields.qty = qty;
+      // Unit price
+      metafields.invoicecost = perItemCost; // Avoid division by zero
 
       // 3️⃣ Merge into original row
       Object.assign(row, metafields);
