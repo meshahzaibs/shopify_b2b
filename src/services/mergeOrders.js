@@ -131,7 +131,8 @@ export async function processShopifyExport(inputPath, outputPath) {
       // 2️⃣ Get metafields
       let metafields = await fetchOrderMetafields(orderId);
 
-      metafields.invoiceno = row.Name;
+      let invoicenumber = row.Name;
+      metafields.invoiceno = `${invoicenumber.replace("#", "")}`;
       // Constant vendor no
       metafields.vendorno = "10556901";
 
